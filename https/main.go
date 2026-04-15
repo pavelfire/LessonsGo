@@ -10,10 +10,13 @@ import (
 
 func main() {
 	fmt.Println("Hello, World!")
-	http.Handle("/whats_time", hsts.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+
+	mux.Handle("/whats_time", hsts.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(time.Now().Format(time.RFC3339)))
 	})))
-	http.ListenAndServeTLS(":80", "localhost.crt", "localhost.key", nil)
+
+	http.ListenAndServeTLS(":80", "localhost.crt", "localhost.key", mux)
 }
 
 // openssl req -new -subj "/C=RU/ST=Msk/CN=localhost" -newkey rsa:2048 -nodes -keyout localhost.key -out localhost.csr
