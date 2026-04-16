@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 func main() {
 	s:= "Boat 🗿."
@@ -11,4 +14,7 @@ func main() {
 	for i,c := range s{
 		fmt.Printf("Position %d of '%s'\n", i,string(c))
 	}
+
+	moai := utf8.RuneCountInString(s[5:9])
+	fmt.Println("moai length", moai)
 }
