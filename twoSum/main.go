@@ -5,14 +5,14 @@ import (
 	"log"
 )
 
-func main(){
-	if err := run(); err != nil{
+func main() {
+	if err := run(); err != nil {
 		log.Fatalf("Error: %v", err)
 	}
 }
 
-func run() error{
-	nums := []int{2,7,11,15}
+func run() error {
+	nums := []int{2, 7, 11, 15}
 	target := 9
 	fmt.Printf("Nums before: %#v\n", nums)
 	res := twoSum(nums, target)
@@ -22,14 +22,11 @@ func run() error{
 	return nil
 }
 
-func twoSum(nums []int, target int) []int{
-	
-	for index, number := range nums{
-		for indexi, numberi := range nums{
-			if indexi > index{
-				if number + numberi == target{
-					return []int{index, indexi}
-				}
+func twoSum(nums []int, target int) []int {
+	for i := 0; i < len(nums)-1; i++ {
+		for j := i + 1; j < len(nums); j++ {
+			if nums[i]+nums[j] == target {
+				return []int{i, j}
 			}
 		}
 	}
