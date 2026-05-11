@@ -1,0 +1,34 @@
+--mcp from scratch
+Your Task is to create Model Context Protocol (MCP) Server to expose Hello World tool.
+ For the MCP implementation, you should use the official Go SDK for MCP and
+  use stdio transport.
+
+  Read these referenses to gather information about the technology and
+   project structure before writing any code:
+   - https://raw.githubusercontent.com/modelcontextprotocol/go-sdk/refs/heads/main/README.md
+   - https://go.dev/doc/modules/layout
+
+   To test the server, use shell comands like these:
+   (
+    echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}
+    ';
+    echo '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}';
+    echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}';
+   ) | ./bin/godoctor
+   -- end
+
+   Your mission is to read the following documents:
+
+   https://go.dev/doc/effective_go
+   https://go.dev/wiki/CodeReviewComments
+   https://google.github.io/styleguide/go/
+   https://go.dev/doc/modules/layout
+   https://www.ardanlabs.com/blog/2017/02/package-oriented-design.html
+   https://go-proverbs.github.io/
+   https://grafana.com/blog/2024/02/09/
+   https://grafana.com/blog/how-i-write-http-services-in-go-after-13-years/
+
+
+
+   https://quii.gitbook.io/learn-go-with-tests/go-fundamentals/hello-world
+   
