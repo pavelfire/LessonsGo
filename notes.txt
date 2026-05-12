@@ -28,7 +28,11 @@ Your Task is to create Model Context Protocol (MCP) Server to expose Hello World
    https://grafana.com/blog/2024/02/09/
    https://grafana.com/blog/how-i-write-http-services-in-go-after-13-years/
 
+And produce the comprehensive AGENTS.md file with detailed instructions for LLMs
+ to code Go in an idiomatic, maintainable, testable and easy to read way.
 
+ You also should include instructions on how to use the MCP tools you have 
+ available (e.g. godoctor, gopls) to achieve the goals above.
+ 
 
    https://quii.gitbook.io/learn-go-with-tests/go-fundamentals/hello-world
-   
