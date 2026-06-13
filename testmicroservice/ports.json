@@ -1,0 +1,74 @@
+[
+  {
+    "id": "AEAJM",
+    "name": "Ajman",
+    "city": "Ajman",
+    "country": "United Arab Emirates",
+    "province": "Ajman",
+    "coordinates": [55.5136433, 25.4052165],
+    "timezone": "Asia/Dubai",
+    "alias": [],
+    "regions": [],
+    "code": "52000"
+  },
+  {
+    "id": "AEAUH",
+    "name": "Abu Dhabi",
+    "city": "Abu Dhabi",
+    "country": "United Arab Emirates",
+    "province": "Abu Zaby [Abu Dhabi]",
+    "coordinates": [54.37, 24.47],
+    "timezone": "Asia/Dubai",
+    "alias": [],
+    "regions": [],
+    "code": "52001"
+  },
+  {
+    "id": "AEDXB",
+    "name": "Dubai",
+    "city": "Dubai",
+    "country": "United Arab Emirates",
+    "province": "Dubayy [Dubai]",
+    "coordinates": [55.27, 25.25],
+    "timezone": "Asia/Dubai",
+    "alias": [],
+    "regions": [],
+    "code": "52005"
+  },
+  {
+    "id": "NLRTM",
+    "name": "Rotterdam",
+    "city": "Rotterdam",
+    "country": "Netherlands",
+    "province": "South Holland",
+    "coordinates": [4.4792, 51.9225],
+    "timezone": "Europe/Amsterdam",
+    "alias": ["Europort"],
+    "regions": ["Europe"],
+    "code": "53001"
+  },
+  {
+    "id": "SGSIN",
+    "name": "Singapore",
+    "city": "Singapore",
+    "country": "Singapore",
+    "province": "Singapore",
+    "coordinates": [103.8198, 1.3521],
+    "timezone": "Asia/Singapore",
+    "alias": [],
+    "regions": ["Asia"],
+    "code": "54001"
+  },
+  {
+    "id": "AEDXB",
+    "name": "Dubai (updated)",
+    "city": "Dubai",
+    "country": "United Arab Emirates",
+    "province": "Dubai",
+    "coordinates": [55.2708, 25.2048],
+    "timezone": "Asia/Dubai",
+    "alias": ["Jebel Ali Port"],
+    "regions": ["Middle East"],
+    "code": "52005"
+  }
+]
