@@ -1,0 +1,18 @@
+services:
+  banksim:
+    build:
+      context: .
+      dockerfile: Dockerfile.banksim
+    ports:
+      - "8081:8081"
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - banksim
+    environment:
+      - BANK_URL=http://banksim:8081
