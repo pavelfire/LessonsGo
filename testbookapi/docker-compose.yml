@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bookshop
+      POSTGRES_PASSWORD: bookshop
+      POSTGRES_DB: bookshop
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookshop -d bookshop"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://bookshop:bookshop@db:5432/bookshop?sslmode=disable
+      JWT_SECRET: dev-secret-change-me
