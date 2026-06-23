@@ -1,0 +1,1529 @@
+================================================================================
+SENIOR GOLANG DEVELOPER — INTERVIEW ANSWERS (EN / RU)
+================================================================================
+
+
+================================================================================
+1. OVERVIEW OF YOUR EXPERIENCE
+================================================================================
+
+EN:
+I am a senior backend engineer with 8+ years of experience, the last 5–6 focused
+primarily on Go. I have designed and delivered production microservices, REST and
+gRPC APIs, event-driven systems (Kafka, RabbitMQ), and data pipelines at scale.
+
+Typical responsibilities:
+- Designing service boundaries, APIs, and data models
+- Implementing business logic with clean architecture (handlers → services → repos)
+- Performance tuning, observability, and reliability (retries, circuit breakers, idempotency)
+- Code review, mentoring juniors, and driving engineering standards
+- CI/CD, containerization (Docker), orchestration (Kubernetes), IaC (Terraform)
+
+I am comfortable across the stack: PostgreSQL, Redis, Elasticsearch, Prometheus/Grafana,
+OpenTelemetry, GitHub Actions, and cloud providers (AWS/GCP). I value pragmatic
+engineering: simple designs that are testable, observable, and easy to operate.
+
+RU:
+Я senior backend-разработчик с 8+ годами опыта, из них последние 5–6 лет в основном
+на Go. Проектировал и выводил в продакшен микросервисы, REST/gRPC API, event-driven
+системы (Kafka, RabbitMQ) и data pipeline под нагрузкой.
+
+Типичные обязанности:
+- Проектирование границ сервисов, API и моделей данных
+- Реализация бизнес-логики в clean architecture (handlers → services → repos)
+- Производительность, observability, надёжность (retry, circuit breaker, идемпотентность)
+- Code review, менторинг джунов, инженерные стандарты
+- CI/CD, Docker, Kubernetes, IaC (Terraform)
+
+Комфортно работаю с PostgreSQL, Redis, Elasticsearch, Prometheus/Grafana,
+OpenTelemetry, GitHub Actions, AWS/GCP. Предпочитаю прагматичный подход: простые
+решения, которые легко тестировать, наблюдать и сопровождать.
+
+
+================================================================================
+2. WHAT QUESTIONS DO YOU HAVE ABOUT THE ROLE?
+================================================================================
+
+EN:
+- What is the current architecture (monolith vs microservices, sync vs async)?
+- What are the top 2–3 technical challenges in the next 6–12 months?
+- How are teams structured (feature teams, platform, SRE)? Who owns on-call?
+- What does "done" look like for a senior engineer here — delivery, design, mentoring?
+- What is the release cadence and rollout strategy (feature flags, blue/green)?
+- How mature are observability, testing, and CI/CD today?
+- What is the tech debt situation — planned refactors or firefighting mode?
+- How does the team collaborate with mobile/product on API versioning and contracts?
+
+RU:
+- Какая текущая архитектура (монолит/микросервисы, sync/async)?
+- Какие 2–3 главные технические задачи на ближайшие 6–12 месяцев?
+- Как устроены команды (feature/platform/SRE)? Кто на on-call?
+- Что ожидается от senior: delivery, design, менторинг?
+- Какой ритм релизов и стратегия выката (feature flags, blue/green)?
+- Насколько зрелые observability, тесты и CI/CD?
+- Состояние tech debt — плановые рефакторинги или постоянные «пожары»?
+- Как команда согласует API-контракты и версионирование с mobile/product?
+
+
+================================================================================
+3. HOW DO YOU TEST API PERFORMANCE? PROJECT EXAMPLE?
+================================================================================
+
+EN:
+I use a layered approach:
+
+1. Baseline metrics in production/staging: latency (p50/p95/p99), RPS, error rate,
+   saturation (CPU, memory, DB connections, goroutines).
+
+2. Load testing tools:
+   - k6, vegeta, or hey for HTTP APIs
+   - ghz for gRPC
+   - Custom Go benchmarks for hot paths (BenchmarkXxx in *_test.go)
+
+3. What I measure:
+   - Throughput under target RPS
+   - Latency distribution under load (not just average)
+   - Resource usage and bottlenecks (DB, network, locks, GC pauses)
+   - Degradation behavior when dependencies are slow
+
+4. Process:
+   - Define SLOs (e.g., p99 < 200ms at 1000 RPS)
+   - Reproduce production-like data volume and payload sizes
+   - Profile under load (pprof: CPU, heap, goroutine, mutex)
+   - Fix bottleneck, re-run, compare
+
+Example: In a payment gateway service (Go), checkout API p99 was ~800ms at peak.
+pprof showed excessive DB round-trips (N+1). Added batch queries + Redis cache for
+read-heavy lookups. After change: p99 ~120ms at same load. Validated with k6 and
+monitored in Grafana for a week before full rollout.
+
+RU:
+Многоуровневый подход:
+
+1. Базовые метрики в staging/prod: latency (p50/p95/p99), RPS, error rate,
+   насыщение (CPU, память, соединения с БД, goroutines).
+
+2. Инструменты нагрузочного тестирования:
+   - k6, vegeta, hey для HTTP
+   - ghz для gRPC
+   - Go benchmarks для горячих путей
+
+3. Что измеряю:
+   - Пропускная способность при целевом RPS
+   - Распределение latency под нагрузкой
+   - Узкие места (БД, сеть, блокировки, GC)
+   - Поведение при деградации зависимостей
+
+4. Процесс:
+   - SLO (например, p99 < 200ms при 1000 RPS)
+   - Данные и payload близкие к продакшену
+   - Профилирование под нагрузкой (pprof)
+   - Исправление → повторный прогон → сравнение
+
+Пример: в payment gateway (Go) p99 checkout был ~800ms. pprof показал N+1 запросы
+к БД. Batch-запросы + Redis-кэш → p99 ~120ms. Проверено k6 и неделю в Grafana.
+
+
+================================================================================
+4. IMPROVEMENT APPROACH WHEN API DOES NOT WORK AS EXPECTED
+================================================================================
+
+EN:
+Structured debugging, not guessing:
+
+1. Reproduce: exact request, environment, version, correlation ID.
+2. Observe: logs (structured), traces (OpenTelemetry), metrics (error rate spike?).
+3. Narrow scope: client issue vs gateway vs service vs DB vs downstream dependency.
+4. Check recent changes: deploys, config, migrations, feature flags.
+5. Isolate: can you call the dependency directly? Is it intermittent?
+6. Fix with minimal blast radius: hotfix vs rollback vs feature flag off.
+7. Post-incident: root cause, action items, add test/alert to prevent recurrence.
+
+For APIs specifically: validate contract (OpenAPI/proto), auth headers, timeouts,
+payload schema, idempotency keys, and downstream circuit breaker state.
+
+RU:
+Структурированная отладка:
+
+1. Воспроизведение: запрос, окружение, версия, correlation ID.
+2. Наблюдение: логи, трейсы, метрики (скачок ошибок?).
+3. Сужение: клиент / gateway / сервис / БД / внешняя зависимость.
+4. Недавние изменения: деплои, конфиг, миграции, feature flags.
+5. Изоляция: прямой вызов зависимости? Интермиттент?
+6. Исправление с минимальным blast radius: hotfix / rollback / выключение флага.
+7. Post-mortem: root cause, action items, тест/алерт против повторения.
+
+Для API: контракт, auth, таймауты, схема payload, idempotency keys, circuit breaker.
+
+
+================================================================================
+5. EVENTUAL CONSISTENCY — ARE YOU FAMILIAR?
+================================================================================
+
+EN:
+Yes. Eventual consistency means that after a write, all replicas/consumers will
+converge to the same state, but not instantly. There is a window where reads may
+return stale data.
+
+Common in:
+- Distributed databases (Cassandra, Dynamo-style)
+- CQRS + event sourcing
+- Cache-aside patterns
+- Async messaging between services
+
+Implications for design:
+- UI must tolerate stale reads or show "pending" states
+- Business rules must handle duplicates and out-of-order events
+- Use versioning, timestamps, or "read your writes" strategies where needed
+- Compensating transactions / sagas for cross-service workflows
+
+RU:
+Да. Eventual consistency — после записи все реплики/потребители сойдутся к одному
+состоянию, но не мгновенно. Есть окно, когда чтение может вернуть устаревшие данные.
+
+Типично в:
+- Распределённых БД
+- CQRS + event sourcing
+- Cache-aside
+- Асинхронном обмене между сервисами
+
+Для дизайна:
+- UI терпит stale reads или показывает «pending»
+- Бизнес-правила учитывают дубликаты и out-of-order события
+- Версионирование, timestamps, «read your writes» где нужно
+- Compensating transactions / sagas для кросс-сервисных процессов
+
+
+================================================================================
+6. PROBLEMS IN DISTRIBUTED COMPUTING
+================================================================================
+
+EN:
+- Partial failures: one node/dependency fails while others work
+- Network unreliability: latency spikes, partitions, timeouts
+- Consistency vs availability trade-offs (CAP)
+- Clock skew and ordering of events across nodes
+- Duplicate messages and at-least-once delivery
+- Cascading failures without bulkheads/circuit breakers
+- Observability complexity: distributed tracing, correlation IDs
+- Data ownership boundaries and schema evolution across teams
+- Operational overhead: deploys, config drift, many moving parts
+
+RU:
+- Частичные отказы
+- Ненадёжность сети: latency, partitions, таймауты
+- Компромисс consistency vs availability (CAP)
+- Рассинхрон часов и порядок событий
+- Дубликаты и at-least-once доставка
+- Каскадные отказы без bulkhead/circuit breaker
+- Сложность observability: трейсы, correlation ID
+- Границы данных и эволюция схем между командами
+- Операционная нагрузка: деплои, config drift
+
+
+================================================================================
+7. ANTI-CORRUPTION LAYER IN DB MIGRATION (2 DATABASES)
+================================================================================
+
+EN:
+Yes, very useful. An Anti-Corruption Layer (ACL) translates between the old domain
+model and the new one so that legacy concepts do not leak into the new system.
+
+In a dual-DB migration:
+- ACL sits between application code and both data stores (or between old and new services)
+- Maps entities, field names, enums, and business rules
+- Allows strangler-fig pattern: route traffic gradually to the new DB
+- Protects new codebase from legacy quirks (nullable fields, inconsistent enums)
+
+Without ACL, teams often copy bad schemas and coupling into the new system, making
+the migration longer and riskier.
+
+RU:
+Да, очень полезен. Anti-Corruption Layer переводит между старой и новой доменной
+моделью, чтобы legacy не «протекал» в новую систему.
+
+При миграции между двумя БД:
+- ACL между кодом и обоими хранилищами (или между сервисами)
+- Маппинг сущностей, полей, enum, бизнес-правил
+- Strangler-fig: постепенный перевод трафика на новую БД
+- Защита нового кода от legacy-особенностей
+
+Без ACL часто копируют плохие схемы и связность, удлиняя и усложняя миграцию.
+
+
+================================================================================
+8. SERVICE IS SLOW — WHAT INDICATORS / METRICS TO CHECK?
+================================================================================
+
+EN:
+Golden signals + resource saturation:
+
+Infrastructure:
+- CPU (user/system, throttling in containers)
+- Memory (RSS, OOM kills, GC pressure in Go — GOGC, heap alloc rate)
+- Disk I/O, network bandwidth and errors
+- File descriptors, connection pool exhaustion
+
+Application (Go-specific):
+- Goroutine count (leaks?)
+- GC pause time (runtime/metrics, pprof)
+- Mutex/block profile (contention)
+- HTTP/gRPC server latency histograms
+- Queue depth, worker pool saturation
+
+Dependencies:
+- DB: slow queries (pg_stat_statements), connection wait time, locks
+- Redis/cache hit ratio, latency
+- External API latency and error rate
+- Message broker consumer lag (Kafka lag)
+
+Process:
+1. Check dashboards/alerts (RED: Rate, Errors, Duration)
+2. Distributed trace for slow request path
+3. pprof under load (CPU, heap, goroutine, block)
+4. Compare with baseline — regression after deploy?
+
+RU:
+Golden signals + насыщение ресурсов:
+
+Инфраструктура: CPU, память (OOM, GC в Go), диск, сеть, file descriptors, пулы соединений.
+
+Приложение (Go): goroutines, GC pauses, mutex/block profile, latency histograms,
+глубина очередей.
+
+Зависимости: медленные SQL, locks, cache hit ratio, latency внешних API, Kafka lag.
+
+Процесс: дашборды (RED) → distributed trace → pprof → сравнение с baseline.
+
+
+================================================================================
+9. TEAM TOPOLOGY AND YOUR ROLE
+================================================================================
+
+EN:
+Typical setups I have worked in:
+
+- Squad of 5–8: 1 EM/TL, 2–3 seniors, 2–3 mids, 1–2 juniors
+- Platform team (3–5) providing CI/CD, observability, shared libraries
+- Product-aligned feature teams owning end-to-end vertical slices
+
+My roles:
+- Senior/Staff engineer: technical design, implementation, code review, mentoring
+- Tech lead (without people management): architecture decisions, sprint planning input,
+  unblocking the team, stakeholder communication
+- Occasionally acting lead during absence of EM
+
+I prefer cross-functional squads with clear ownership of a service/domain and shared
+on-call rotation among seniors.
+
+RU:
+Типичные конфигурации:
+
+- Сквад 5–8: EM/TL, 2–3 senior, 2–3 mid, 1–2 junior
+- Platform-команда: CI/CD, observability, общие библиотеки
+- Feature-команды с end-to-end ownership вертикали
+
+Роли:
+- Senior/Staff: дизайн, реализация, review, менторинг
+- Tech lead: архитектура, планирование, разблокировка, коммуникация со стейкхолдерами
+- Временное лидерство при отсутствии EM
+
+Предпочитаю кросс-функциональные сквады с чётким ownership и shared on-call.
+
+
+================================================================================
+10. GITHUB ACTIONS FOR ROLLBACK
+================================================================================
+
+EN:
+Rollback in GitHub Actions is usually "redeploy a known-good artifact/tag", not
+re-running a broken pipeline blindly.
+
+Approaches:
+1. Immutable artifacts: build once, push image with git SHA tag. Rollback workflow
+   takes `image_tag` input and deploys previous SHA.
+2. `workflow_dispatch` rollback job: select environment + previous release tag.
+3. Revert commit on main → triggers normal CD pipeline (clean audit trail).
+4. Blue/green or canary: shift traffic back to previous deployment in K8s/ALB.
+5. Store last N successful deployment metadata (JSON artifact) for one-click rollback.
+
+Example workflow sketch:
+- `rollback.yml` on workflow_dispatch
+- Inputs: environment, image_tag (or release version)
+- Steps: kubectl set image / helm rollback / terraform apply previous state
+- Post-deploy smoke tests + automatic alert if health check fails
+
+Never rollback DB migrations blindly — need backward-compatible migrations or
+separate rollback playbook.
+
+RU:
+Rollback в GitHub Actions — это «задеплоить известный хороший артефакт», а не
+слепой перезапуск сломанного pipeline.
+
+Подходы:
+1. Immutable artifacts: образ с git SHA; rollback workflow принимает `image_tag`.
+2. `workflow_dispatch` с выбором окружения и тега.
+3. Revert коммита → обычный CD (чистый audit trail).
+4. Blue/green или canary: вернуть трафик на предыдущий deployment.
+5. Хранить метаданные последних N успешных деплоев.
+
+Пример: `rollback.yml`, inputs environment + image_tag, kubectl/helm rollback,
+smoke tests после деплоя.
+
+Миграции БД откатывать вслепую нельзя — backward-compatible migrations или отдельный playbook.
+
+
+================================================================================
+11. MOBILE CLIENTS — PROJECT EXPERIENCE AND COMPLEXITY
+================================================================================
+
+EN:
+Yes. Mobile adds constraints you do not control:
+
+- Users upgrade slowly — must support N-1 or N-2 API versions
+- Offline/poor network — retries, idempotency, pagination, smaller payloads
+- Long-lived app versions in the wild — backward-compatible API changes only
+- Push notifications, deep links, background sync
+- Platform differences (iOS/Android) affecting auth (OAuth, biometrics, keychain)
+
+Design practices:
+- API versioning (URL /v2/ or header Accept-Version)
+- Contract-first (OpenAPI), mobile SDK or generated clients where possible
+- Feature flags on server side; graceful degradation for old clients
+- Deprecation policy with sunset dates communicated to mobile team
+- Staged rollouts coordinated with app store release cycles
+
+RU:
+Да. Mobile добавляет неконтролируемые ограничения:
+
+- Медленные обновления — поддержка N-1/N-2 версий API
+- Офлайн/плохая сеть — retry, идемпотентность, пагинация, меньшие payload
+- Старые версии приложений в поле — только backward-compatible изменения
+- Push, deep links, фоновая синхронизация
+- Различия iOS/Android в auth
+
+Практики: версионирование API, contract-first (OpenAPI), feature flags на сервере,
+политика deprecation, согласованные rollout с релизами в сторах.
+
+
+================================================================================
+12. GRADUAL FEATURE RELEASE FOR LARGE USER BASE
+================================================================================
+
+EN:
+- Feature flags (LaunchDarkly, Unleash, or in-house): % rollout, user segments, geo
+- Canary deployments: route 1% → 5% → 25% → 100% traffic
+- Blue/green: instant switch with quick rollback
+- Ring deployments: internal → beta users → general availability
+- Dark launch: ship code disabled, enable per cohort
+- Kill switch for instant disable without redeploy
+- Monitor error rate, latency, business KPIs per cohort during rollout
+- A/B testing when measuring product impact, not just technical safety
+
+RU:
+- Feature flags: % rollout, сегменты, гео
+- Canary: 1% → 5% → 25% → 100%
+- Blue/green: мгновенное переключение и быстрый rollback
+- Ring deployments: internal → beta → GA
+- Dark launch: код в проде, флаг выключен
+- Kill switch без редеплоя
+- Мониторинг ошибок, latency, KPI по когортам
+- A/B для продуктовых метрик
+
+
+================================================================================
+13–15. CODE QUALITY — PRACTICES, TOOLS, EXAMPLES OF PROBLEMS
+================================================================================
+
+EN:
+Practices:
+- Code review (every PR, checklist: tests, observability, security, API contract)
+- Trunk-based development or short-lived feature branches
+- Definition of Done: tests, docs, metrics, runbook if needed
+- Pair programming for complex/risky changes
+- ADRs for architectural decisions
+- Static analysis in CI: golangci-lint, go vet, staticcheck
+- Pre-commit hooks: fmt, lint, unit tests
+- Contract tests for APIs (Pact or integration tests against OpenAPI)
+- SonarQube / CodeClimate for trends (not gatekeeping everything)
+
+Tools: golangci-lint, go test -race -cover, testify, mockery/gomock, reviewdog,
+dependabot, semgrep (security), CODEOWNERS.
+
+Example quality problems faced:
+- Missing context propagation → untraceable production bugs → mandated
+  context.Context everywhere + OpenTelemetry middleware
+- Race conditions in cache layer → intermittent wrong reads → added -race in CI,
+  redesigned with sync.RWMutex and singleflight
+- "Copy-paste" handlers without shared validation → inconsistent 400 responses →
+  extracted middleware and validator package
+- No integration tests for DB migrations → prod incident → migration review +
+  testcontainers in CI
+
+RU:
+Практики: code review, короткие ветки, Definition of Done, pair programming для
+рискованных изменений, ADR, статический анализ в CI, pre-commit hooks, contract tests.
+
+Инструменты: golangci-lint, go test -race, testify, mockery, dependabot, CODEOWNERS.
+
+Примеры проблем:
+- Нет propagation context → ввели OpenTelemetry middleware
+- Race в кэше → -race в CI, singleflight
+- Дублирование валидации → общий middleware
+- Миграции без тестов → testcontainers в CI
+
+
+================================================================================
+16. PROBLEMS IN EVENT-DRIVEN SYSTEMS (KAFKA / MQ)
+================================================================================
+
+EN:
+- At-least-once delivery → duplicate processing
+- Out-of-order events → need versioning or event-time semantics
+- Consumer lag under load → scaling consumers, partition strategy
+- Poison messages → DLQ, retry with backoff, max attempts
+- Schema evolution (Avro/Protobuf) breaking consumers
+- Debugging harder than sync calls — need correlation IDs in events
+- Distributed transactions absent — sagas/compensation required
+- "Dual write" problem: DB + publish not atomic
+
+RU:
+- At-least-once → дубликаты
+- Out-of-order → версионирование
+- Consumer lag → партиции, масштабирование
+- Poison messages → DLQ, retry
+- Эволюция схем ломает consumers
+- Сложная отладка → correlation ID в событиях
+- Нет распределённых транзакций → sagas
+- Dual write: БД + publish не атомарны
+
+
+================================================================================
+17. EVENT-DRIVEN + CACHING — CONSISTENCY CONSIDERATIONS
+================================================================================
+
+EN:
+- Cache invalidation is hard: TTL alone may serve stale data too long
+- Prefer cache-aside with explicit invalidation on write events
+- Or write-through / write-behind with clear consistency SLA
+- Eventual consistency between DB, cache, and read replicas
+- Use version numbers or timestamps in cache entries; reject stale writes
+- Idempotent consumers so duplicate invalidation events are safe
+- Consider CDC (Debezium) to keep cache in sync with DB truth
+- Document acceptable staleness per use case (product catalog vs account balance)
+
+RU:
+- Инвалидация кэша сложна; TTL alone может давать долгий stale
+- Cache-aside + явная инвалидация по событиям записи
+- Write-through/write-behind с понятным SLA
+- Eventual consistency между БД, кэшем и репликами
+- Версии/timestamps в записях кэша
+- Идемпотентные consumers для дубликатов инвалидации
+- CDC (Debezium) для синхронизации с БД
+- Документировать допустимый stale per use case
+
+
+================================================================================
+18 & 33. MICROSERVICES & EVENT-DRIVEN — PATTERNS, EXPERIENCE, PROS/CONS
+================================================================================
+
+EN:
+Experience: multiple production systems with 15–40 services, Kafka as backbone,
+gRPC internal, REST external, PostgreSQL per service, Redis caching.
+
+Common patterns:
+- API Gateway / BFF
+- Saga / choreography / orchestration for distributed workflows
+- Circuit Breaker, Bulkhead, Retry with jitter, Timeout
+- CQRS, Event Sourcing (where audit/replay needed)
+- Outbox pattern, Transactional Outbox
+- Strangler Fig for legacy migration
+- Sidecar for observability (service mesh optional)
+- Database per service
+
+Advantages:
+- Independent deploy and scale
+- Team autonomy, technology fit per service
+- Fault isolation (with proper boundaries)
+- Elastic scaling of hot services
+
+Challenges:
+- Distributed debugging and testing
+- Data consistency across services
+- Network latency and operational complexity
+- Contract management and versioning
+- Higher baseline cost (infra, observability, platform team)
+
+RU:
+Опыт: 15–40 сервисов, Kafka, gRPC внутри, REST наружу, PostgreSQL per service.
+
+Паттерны: API Gateway/BFF, Saga, Circuit Breaker, Bulkhead, CQRS, Outbox,
+Strangler Fig, database per service.
+
+Плюсы: независимый deploy/scale, автономия команд, изоляция отказов.
+
+Минусы: распределённая отладка, consistency, latency, операционная сложность,
+управление контрактами, стоимость инфраструктуры.
+
+
+================================================================================
+19. HUGE TRAFFIC — HANDLING REQUESTS BEYOND CURRENT CAPACITY
+================================================================================
+
+EN:
+Short term (absorb spike):
+- Horizontal scaling (K8s HPA on CPU/RPS/custom metrics)
+- Rate limiting and throttling (per user, per API key) — return 429
+- Queue-based load leveling (accept → async process → poll/webhook)
+- CDN and edge caching for static/read-heavy content
+- Connection pooling, keep-alive, efficient serialization
+
+Medium term:
+- Caching layers (Redis, in-process with TTL)
+- Read replicas, sharding, partitioning
+- Bulkhead: isolate critical paths from non-critical
+- Degrade gracefully: disable non-essential features under load
+
+Long term:
+- Capacity planning from load tests and growth forecasts
+- Auto-scaling policies, multi-region
+- Architectural split: sync path minimal, heavy work async
+
+RU:
+Краткосрочно: HPA, rate limiting (429), очереди, CDN, пулы соединений.
+
+Среднесрочно: кэши, read replicas, шардирование, bulkhead, graceful degradation.
+
+Долгосрочно: capacity planning, auto-scaling, multi-region, минимальный sync path.
+
+
+================================================================================
+20 & 63. GO — INTERFACE IMPLEMENTATION
+================================================================================
+
+EN:
+Go uses implicit (structural) interface satisfaction — no `implements` keyword.
+A type implements an interface if it has all methods with matching signatures.
+
+```go
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+
+type MyReader struct{}
+func (m MyReader) Read(p []byte) (int, error) { return 0, nil }
+// MyReader implements Reader automatically
+```
+
+Key points:
+- Interfaces are satisfied implicitly — enables decoupling and easy mocking in tests
+- Small interfaces (io.Reader, io.Writer) — "accept interfaces, return structs"
+- nil interface gotcha: var err *MyError = nil; var e error = err → e != nil
+- Empty interface `any` for generic containers; prefer generics (Go 1.18+) where typed
+- Compile-time check: `var _ MyInterface = (*MyType)(nil)`
+
+RU:
+В Go интерфейсы удовлетворяются неявно (structural typing) — без `implements`.
+Тип реализует интерфейс, если имеет все методы с нужными сигнатурами.
+
+Важно:
+- Неявная реализация — удобное мокирование в тестах
+- Маленькие интерфейсы — «принимай интерфейсы, возвращай структуры»
+- Ловушка nil interface: присвоение typed nil в interface даёт non-nil interface
+- Проверка на этапе компиляции: `var _ MyInterface = (*MyType)(nil)`
+
+
+================================================================================
+21 & 42 & 56. GO — ARRAYS VS SLICES
+================================================================================
+
+EN:
+Array: fixed length, value type, part of type `[N]T`. Passing copies N elements.
+Slice: descriptor (pointer, len, cap) over underlying array; reference semantics.
+Most Go code uses slices, not arrays.
+
+```go
+var a [3]int           // array, size is type的一部分
+s := make([]int, 0, 10) // slice: len 0, cap 10
+s = append(s, 1)       // may reallocate underlying array
+```
+
+Differences:
+- Arrays cannot be resized; slices can grow via append (may reallocate)
+- Slicing shares underlying array — mutations visible across slices (careful!)
+- `len` vs `cap`: capacity is pre-allocated room before reallocation
+- Passing slice to function passes header (cheap); array passes copy (expensive for large N)
+- nil slice is valid (len=0); nil array is still `[0]T` with zero value
+
+Performance tip: preallocate with `make([]T, 0, expectedCap)` to avoid repeated allocations.
+
+RU:
+Массив: фиксированная длина, value type `[N]T`, при передаче копируется.
+
+Слайс: дескриптор (указатель, len, cap) над массивом; reference semantics.
+В Go почти всегда используют слайсы.
+
+Отличия:
+- Массив не меняет размер; слайс растёт через append (возможна реаллокация)
+- Слайсы разделяют underlying array — мутации видны везде
+- len vs cap
+- Передача слайса дешёвая; массива — копия
+- nil slice валиден
+
+Совет: `make([]T, 0, cap)` для уменьшения аллокаций.
+
+
+================================================================================
+22 & 28 & 53. ONBOARDING JUNIORS / COMPLEX PROJECTS / COACHING
+================================================================================
+
+EN:
+Onboarding juniors:
+- Structured 30/60/90 plan with increasing scope
+- Pair on first tickets; review their PRs with teaching comments, not just "fix this"
+- Document local dev setup, architecture diagram, "how to debug prod"
+- Assign safe starter tasks (tests, small bugfixes) → grow to feature ownership
+- Regular 1:1s; encourage questions early
+
+Complex project onboarding (any level):
+- Architecture overview session + map of services and data flows
+- Read-only shadowing of on-call/incidents
+- "Buddy" for first month
+- CONTRIBUTING.md, runbooks, ADR index
+
+If I am being onboarded, I expect:
+- Clear ownership map and escalation paths
+- Access (repos, CI, staging, observability) on day 1
+- Current priorities and tech debt context
+- Freedom to ask "dumb" questions first two weeks
+- Early small win task to build confidence
+
+RU:
+Онбординг джунов: план 30/60/90, pair programming, обучающие review, документация,
+безопасные первые задачи, регулярные 1:1.
+
+Сложный проект: обзор архитектуры, buddy, CONTRIBUTING.md, runbooks.
+
+Если онбордят меня: ownership map, доступы в день 1, приоритеты, контекст tech debt,
+право задавать вопросы, ранняя небольшая победа.
+
+
+================================================================================
+24. MOBILE — DESIGN CONSIDERATIONS (VERSIONING, RETRO-COMPATIBILITY)
+================================================================================
+
+EN:
+(See section 11 for full answer — key points:)
+
+- Treat mobile API as long-term contract; additive changes preferred
+- Never remove/rename fields without version bump and deprecation period
+- Pagination cursors stable across versions
+- Idempotent POST for unreliable networks
+- Server-driven feature flags to control exposure per app version
+- Coordinate breaking changes with minimum supported app version policy
+
+RU:
+- API для mobile — долгосрочный контракт; предпочитать additive changes
+- Не удалять/переименовывать поля без версии и deprecation period
+- Стабильные pagination cursors
+- Идемпотентные POST
+- Feature flags с учётом версии приложения
+- Breaking changes только с политикой minimum supported version
+
+
+================================================================================
+25. ROLLOUT STRATEGIES — PHASED, BLUE/GREEN
+================================================================================
+
+EN:
+Phased rollout: gradually increase exposure (%, regions, user segments). Lower risk,
+slower feedback loop.
+
+Blue/green: two identical environments; deploy to green, test, switch traffic atomically.
+Fast rollback by switching back to blue. Higher infra cost.
+
+Also: canary (subset of traffic to new version), rolling update (K8s default),
+feature flags (decouple deploy from release).
+
+Choose based on: blast radius tolerance, infra budget, need for instant rollback,
+regulatory requirements.
+
+RU:
+Phased: постепенное увеличение exposure. Меньше риск, медленнее feedback.
+
+Blue/green: два окружения, атомарное переключение, быстрый rollback. Дороже.
+
+Также: canary, rolling update, feature flags.
+
+Выбор по blast radius, бюджету, необходимости мгновенного rollback.
+
+
+================================================================================
+26. HOW KUBERNETES HELPS WITH SERVICE SCALABILITY
+================================================================================
+
+EN:
+- Horizontal Pod Autoscaler (HPA): scale replicas on CPU, memory, or custom metrics
+- Vertical Pod Autoscaler (VPA): right-size requests/limits
+- Cluster Autoscaler: add nodes when pods pending
+- Load balancing via Service + Ingress
+- Rolling updates with maxUnavailable/maxSurge for zero-downtime deploys
+- Resource requests/limits prevent noisy neighbor
+- Liveness/readiness probes — unhealthy pods removed from rotation
+- Pod Disruption Budgets for safe node drains
+- Service mesh (optional) for traffic splitting (canary)
+
+RU:
+HPA, VPA, Cluster Autoscaler, Service/Ingress, rolling updates, requests/limits,
+liveness/readiness probes, PDB, service mesh для canary.
+
+
+================================================================================
+27. DUAL WRITE IN MICROSERVICES — PATTERNS, "LISTEN TO YOURSELF"
+================================================================================
+
+EN:
+Dual write problem: writing to DB and publishing event (or second store) without
+atomicity — one can succeed, the other fail → inconsistency.
+
+Solutions:
+1. Transactional Outbox: write business data + outbox row in same DB transaction;
+   separate relay publishes to broker (at-least-once, idempotent consumers).
+2. Change Data Capture (CDC): DB is source of truth; Debezium streams changes to Kafka.
+3. Saga: orchestrate steps with compensations.
+4. "Listen to yourself" / read-your-own-writes via events: service consumes its own
+   events to update read models or secondary stores — single writer path.
+
+Avoid naive "write DB then publish" without outbox — it will break under failures.
+
+RU:
+Dual write: запись в БД и publish без атомарности → рассинхрон.
+
+Решения:
+1. Transactional Outbox + relay
+2. CDC (Debezium) — БД source of truth
+3. Saga с компенсациями
+4. «Listen to yourself» — сервис обновляет read model из своих событий
+
+Избегать наивного «сначала БД, потом publish» без outbox.
+
+
+================================================================================
+29. COMPLEX PROJECTS — DEPENDENCIES WITH THIRD PARTIES
+================================================================================
+
+EN:
+- Contract-first integration; SLAs and timeout budgets documented
+- Circuit breaker + fallback/degraded mode when vendor is down
+- Sandbox/staging environments from vendor for CI
+- Adapter/ACL layer so vendor API changes are isolated
+- Retry only on idempotent operations; exponential backoff with jitter
+- Monitor vendor latency/error rate as first-class metrics
+- Escalation contacts and status page subscriptions
+- Feature flags to disable integration quickly
+- Legal/compliance review for data residency if PII involved
+
+RU:
+Contract-first, SLA, circuit breaker, sandbox для CI, adapter/ACL, retry только для
+идемпотентных ops, мониторинг vendor metrics, escalation, feature flags, compliance.
+
+
+================================================================================
+30. ATTACKING A PERFORMANCE DATABASE ISSUE
+================================================================================
+
+EN:
+1. Confirm it's DB: trace shows time in queries; app CPU low but latency high
+2. Identify slow queries: pg_stat_statements, EXPLAIN ANALYZE, slow query log
+3. Check connections: pool exhaustion, idle in transaction, lock waits (pg_locks)
+4. Index analysis: missing index, wrong index, bloat, statistics stale (ANALYZE)
+5. Query shape: N+1, SELECT *, large OFFSET pagination
+6. Hardware/IO: IOPS saturation, replication lag on reads
+7. Fix: index, rewrite query, batch, cache hot reads, read replica, partition
+8. Verify: before/after EXPLAIN, load test, monitor p95 query time
+
+RU:
+1. Подтвердить, что узкое место — БД
+2. Медленные запросы: pg_stat_statements, EXPLAIN ANALYZE
+3. Соединения, locks
+4. Индексы, bloat, ANALYZE
+5. N+1, SELECT *, OFFSET pagination
+6. IO, replication lag
+7. Исправление + верификация под нагрузкой
+
+
+================================================================================
+31. TEAM DYNAMICS — MANAGING QUALITY ISSUES
+================================================================================
+
+EN:
+- Make quality visible: metrics, incident reviews without blame
+- Root cause over blame; systemic fixes (lint rules, templates, checklists)
+- Raise bar in PR reviews consistently — seniors model good practices
+- Allocate sprint capacity for tech debt and test gaps (20% rule if possible)
+- Pair juniors with seniors on quality-sensitive areas
+- Automate what humans forget: CI gates for coverage, lint, security scan
+- Escalate recurring issues to retro with actionable items and owners
+
+RU:
+Видимость качества, blameless post-mortems, системные исправления, единый стандарт
+review, capacity на tech debt, автоматизация в CI, retro с owners.
+
+
+================================================================================
+32. STEPS TO MOVE FEATURES INTO PRODUCTION
+================================================================================
+
+EN:
+1. Requirements clarified; API contract agreed (incl. mobile if applicable)
+2. Design doc / ADR for non-trivial changes
+3. Implementation + unit tests + integration tests
+4. PR review, CI green (lint, test, race detector, security scan)
+5. Deploy to staging; QA / automated e2e
+6. Observability: logs, metrics, traces, alerts for new paths
+7. Feature flag or canary rollout
+8. Monitor SLOs and business metrics post-release
+9. Documentation and runbook updated
+10. Retrospective if issues occurred
+
+RU:
+Требования → дизайн/ADR → код + тесты → review + CI → staging + QA → observability →
+canary/flag → мониторинг → документация → retro при необходимости.
+
+
+================================================================================
+34. COMMUNICATION TECHNOLOGIES USED
+================================================================================
+
+EN:
+Synchronous:
+- REST/JSON (public APIs, BFF)
+- gRPC + Protobuf (internal, low latency, streaming)
+- GraphQL (aggregated mobile/BFF in some projects)
+
+Asynchronous:
+- Apache Kafka (event streaming, high throughput, log retention)
+- RabbitMQ (task queues, routing patterns)
+- NATS (lightweight pub/sub in some setups)
+- Redis Pub/Sub or Streams (simple cases, not durable primary bus)
+
+Service discovery: K8s DNS, Consul (legacy), etcd.
+
+RU:
+Sync: REST, gRPC/Protobuf, GraphQL.
+Async: Kafka, RabbitMQ, NATS, Redis Streams.
+Service discovery: K8s DNS, Consul.
+
+
+================================================================================
+35. CHALLENGES HANDLING DATA IN ASYNC DISTRIBUTED SYSTEMS
+================================================================================
+
+EN:
+- No global ACID transaction across services
+- Eventual consistency and stale reads
+- Ordering guarantees per partition only (Kafka)
+- Duplicate and lost messages (without careful design)
+- Schema evolution across producers/consumers
+- Reconciliation and audit when states diverge
+- GDPR/delete propagation across event copies
+
+RU:
+Нет глобальных ACID-транзакций, eventual consistency, ordering только в partition,
+дубликаты, эволюция схем, reconciliation, распространение удалений (GDPR).
+
+
+================================================================================
+36. OUTBOX PATTERN (DATA CONSISTENCY)
+================================================================================
+
+EN:
+Transactional Outbox solves dual-write: in one DB transaction, insert/update business
+row AND insert row into `outbox` table with event payload. A separate process (polling
+or CDC) reads outbox and publishes to message broker, then marks row as sent.
+
+Guarantees: event is never published without DB commit; relay retries on failure.
+Consumers must be idempotent (event ID as dedup key).
+
+Variants: inbox pattern for incoming events; CDC instead of polling relay.
+
+RU:
+В одной транзакции БД: бизнес-данные + строка в `outbox`. Relay публикует в broker
+и помечает отправленным. Consumers идемпотентны по event ID. Вариант: CDC вместо polling.
+
+
+================================================================================
+37. PREVENTING EXTERNAL API FAILURE FROM FAILING YOUR SYSTEM
+================================================================================
+
+EN:
+- Timeouts on every outbound call (never infinite wait)
+- Circuit breaker: stop calling failing dependency; fail fast
+- Bulkhead: separate thread pools / connection limits per dependency
+- Retries with exponential backoff + jitter (idempotent ops only)
+- Fallback responses or cached stale data where acceptable
+- Async processing: don't block user request on non-critical vendor call
+- Rate limit your own outbound calls to avoid triggering vendor throttling
+- Health checks that reflect dependency state; degrade features gracefully
+
+RU:
+Таймауты, circuit breaker, bulkhead, retry с jitter (идемпотентность), fallback/кэш,
+async где возможно, rate limit исходящих, graceful degradation.
+
+
+================================================================================
+38. ARCHITECTURAL PATTERN WHEN EXTERNAL API FAILS
+================================================================================
+
+EN:
+Combine:
+- Circuit Breaker (stop hammering dead service)
+- Retry + Timeout (transient failures)
+- Cache-aside for read-heavy data (stale-while-revalidate)
+- Queue-based async retry for non-urgent writes
+- Saga with compensation if multi-step workflow
+- Optional: multi-vendor failover if business critical (payments, SMS)
+
+RU:
+Circuit breaker + retry/timeout + кэш + async queue + saga; при критичности — failover
+на второго вендора.
+
+
+================================================================================
+39. INVESTIGATING SLOW OR DOWN SERVICE
+================================================================================
+
+EN:
+1. Is it down for everyone or subset? (region, pod, dependency)
+2. Health endpoints, K8s pod status, recent deploys
+3. Metrics: error rate, latency, saturation, dependency dashboards
+4. Logs with correlation ID; trace waterfall
+5. pprof if CPU/memory/goroutine anomaly
+6. DB/cache/broker dashboards
+7. Network: DNS, TLS, firewall, service mesh routing
+8. Rollback or scale if clear regression
+
+RU:
+Масштаб проблемы → health/pods/deploys → метрики → логи/трейсы → pprof →
+БД/кэш/broker → сеть → rollback/scale.
+
+
+================================================================================
+40. HAVE YOU USED THE PROFILER?
+================================================================================
+
+EN:
+Yes, extensively. Go's `net/http/pprof` and `runtime/pprof`:
+
+- CPU profile: `go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30`
+- Heap: allocation hotspots, memory leaks
+- Goroutine: leaks from forgotten goroutines
+- Mutex/block: lock contention
+- Trace: `go tool trace` for scheduling latency
+
+Workflow: reproduce slowness → capture profile under load → read top functions/flame graph
+→ fix → benchmark/profile again.
+
+Also used continuous profiling (Pyroscope, Datadog profiler) in production with low overhead.
+
+RU:
+Да. pprof: CPU, heap, goroutine, mutex/block, trace. Процесс: воспроизвести → профиль
+под нагрузкой → flame graph → исправить → повторить. Также Pyroscope/Datadog в проде.
+
+
+================================================================================
+41. WHAT DO YOU LIKE MOST IN GOLANG?
+================================================================================
+
+EN:
+- Simplicity and readability — small language, fast onboarding
+- Excellent concurrency model (goroutines + channels) with clear semantics
+- Fast compile times and single static binary deployment
+- Strong standard library (net/http, encoding/json, context, testing)
+- Great tooling: go fmt, go test, pprof, race detector
+- Implicit interfaces enabling clean abstractions and testability
+- Good performance for backend services without complexity of C++
+
+RU:
+Простота, concurrency (goroutines/channels), быстрая компиляция, статический бинарник,
+сильная stdlib, инструменты (fmt, test, pprof, race), неявные интерфейсы, производительность.
+
+
+================================================================================
+42. CONCURRENCY IN GO — EXPERIENCE AND THOUGHTS
+================================================================================
+
+EN:
+Daily use: worker pools, errgroup for parallel tasks with error propagation,
+context for cancellation, sync.WaitGroup, channels for pipelines and fan-out/fan-in.
+
+Patterns:
+- `golang.org/x/sync/errgroup` for bounded parallelism
+- `singleflight` to dedupe concurrent identical requests
+- Mutex for shared state; prefer passing data via channels when natural
+- Always pass context.Context; respect cancellation in long operations
+
+Caution:
+- Race conditions — run `go test -race` in CI
+- Goroutine leaks — ensure exit on ctx.Done()
+- Don't communicate by sharing memory; share memory by communicating (when it fits)
+
+Go makes starting concurrency easy; making it correct requires discipline — but
+still simpler than many languages.
+
+RU:
+Worker pools, errgroup, context, WaitGroup, channels. singleflight, mutex, -race в CI,
+защита от утечек goroutines. Go упрощает старт concurrency; корректность требует дисциплины.
+
+
+================================================================================
+43 & 44. LARGEST TEAM, ROLE, LEADERSHIP RESPONSIBILITIES
+================================================================================
+
+EN:
+Largest team: ~25 engineers across 3 squads (platform + 2 product), plus EM and PM.
+
+My role as tech lead / senior:
+- Technical roadmap alignment with product
+- Architecture reviews and ADRs
+- Unblocking engineers; escalation point for incidents
+- Code review standards and hiring interviews
+- Mentoring 2–3 engineers directly
+- Sprint planning input; realistic estimation
+- Stakeholder communication on technical risks and timelines
+
+Not always people manager — focused on technical leadership and delivery quality.
+
+RU:
+Крупнейшая команда: ~25 инженеров, 3 сквада. Роль tech lead/senior: roadmap,
+архитектура, инциденты, стандарты review, менторинг, планирование, коммуникация
+со стейкхолдерами. Не всегда people manager.
+
+
+================================================================================
+45. SOMETHING YOU DIDN'T LIKE (LAST 6–12 MONTHS) — WOULD FIX WITH MAGIC WAND
+================================================================================
+
+EN:
+Example (honest, constructive):
+"Frequent context switching between urgent production fires and feature work left
+little time for structural improvements (test coverage gaps, outdated runbooks).
+With a magic wand, I'd establish a sustainable on-call load (follow-the-sun or
+reduced interrupt rate) and protect 20% capacity per sprint for reliability and
+developer experience — so we fix root causes instead of repeating incidents."
+
+RU:
+Пример:
+«Частые переключения между прод-инцидентами и фичами не оставляли времени на
+структурные улучшения. Волшебной палочкой — устойчивый on-call, 20% спринта на
+надёжность и DX, чтобы чинить root cause, а не повторять инциденты.»
+
+
+================================================================================
+46. SOMETHING POSITIVE (LAST 6–12 MONTHS)
+================================================================================
+
+EN:
+Example:
+"Led migration of a critical monolith module to a Go microservice with outbox-based
+events. Team adopted OpenTelemetry and SLO dashboards — mean time to detect dropped
+significantly. Mentored two mids to senior-ready level; rewarding to see them own
+services end-to-end."
+
+RU:
+Пример:
+«Миграция критичного модуля монолита в Go-микросервис с outbox. Внедрили OpenTelemetry
+и SLO — MTTD снизилось. Два mid выросли до уровня самостоятельного ownership сервисов.»
+
+
+================================================================================
+47. FAVOURITE SKILL YOU ARE PROUD OF
+================================================================================
+
+EN:
+Breaking down ambiguous problems into actionable technical plans — balancing business
+deadlines with sustainable architecture. Combining debugging under pressure (prod
+incidents) with calm systematic root-cause analysis.
+
+RU:
+Декомпозиция неясных задач в выполнимые технические планы с балансом дедлайнов и
+архитектуры. Отладка под давлением + системный root-cause analysis.
+
+
+================================================================================
+48. ARE YOU FAMILIAR WITH PRs?
+================================================================================
+
+EN:
+Yes — daily practice. I author, review, and merge PRs following team conventions:
+small focused changes, descriptive title/body, linked tickets, test evidence,
+screenshots/logs for behavioral changes. I use CODEOWNERS, required reviews, and
+CI checks before merge. Constructive review: ask questions, suggest alternatives,
+approve when standards met.
+
+RU:
+Да, ежедневно. Пишу и ревьюю PR: маленькие изменения, описание, тикеты, тесты,
+CODEOWNERS, CI перед merge. Конструктивный review.
+
+
+================================================================================
+49. SOMETHING IN CAREER YOU WOULD DO DIFFERENTLY
+================================================================================
+
+EN:
+"I would invest earlier in observability and operational skills — not treat them as
+'ops team problem.' Understanding production behavior from day one would have saved
+weeks of debugging later. Also: speak up sooner on unrealistic deadlines with clear
+trade-off articulation instead of absorbing silent tech debt."
+
+RU:
+«Раньше вложился бы в observability и операционные навыки — не отдавал бы это только
+ops. Раньше озвучивал бы нереалистичные дедлайны с явными trade-offs вместо тихого
+tech debt.»
+
+
+================================================================================
+50. CURSORS IN QUERY LANGUAGES — WHY USEFUL?
+================================================================================
+
+EN:
+Cursors iterate over a result set without loading all rows into memory at once.
+Essential for:
+- Large exports and batch processing (millions of rows)
+- Stable pagination through changing datasets (vs OFFSET which skips rows inefficiently
+  and inconsistently under concurrent writes)
+- Streaming processing in application or DB driver
+
+In PostgreSQL: `DECLARE cursor`, or keyset pagination (`WHERE id > $last_id ORDER BY id
+LIMIT N`) is often preferred over OFFSET for performance.
+
+Everyone uses them (or keyset equivalent) because they bound memory and provide
+consistent iteration through large datasets.
+
+RU:
+Курсоры итерируют результат без загрузки всех строк в память. Нужны для больших
+выгрузок, стабильной пагинации (лучше OFFSET при конкурентных записях), streaming.
+В PostgreSQL часто предпочитают keyset pagination (`WHERE id > $last`). Ограничивают
+память и дают предсказуемую итерацию.
+
+
+================================================================================
+51. MOST IMPORTANT PART OF YOUR ROLE
+================================================================================
+
+EN:
+Delivering reliable, maintainable systems that solve business problems — and raising
+the team's capability while doing so. Technical excellence matters only if it serves
+users and teammates: clear designs, quality code, knowledge sharing, and predictable delivery.
+
+RU:
+Надёжные, сопровождаемые системы для бизнес-задач и рост команды. Техническое
+качество важно, если служит пользователям и коллегам: дизайн, код, sharing знаний,
+предсказуемая delivery.
+
+
+================================================================================
+52. MANAGING CONFLICT IN TEAMS
+================================================================================
+
+EN:
+- Address early, privately first; assume good intent
+- Focus on facts, impact, and shared goals — not personalities
+- Separate technical disagreement (best solution) from interpersonal issues
+- Use ADRs to document decided trade-offs when debate is architectural
+- Escalate to EM only if blocked or behavioral
+- Facilitate meeting where each side presents constraints and proposal; decide or experiment
+
+RU:
+Рано и приватно, good intent, факты и общие цели, ADR для архитектурных споров,
+эскалация при блокировке, structured discussion с экспериментом.
+
+
+================================================================================
+55. SYNC COMMUNICATION — OTHER PARTY NOT RESPONDING, IMPORTANT DATA
+================================================================================
+
+EN:
+- Timeout + retry with backoff (don't block forever)
+- Circuit breaker after threshold
+- Persist request locally (outbox) and async retry until success or DLQ
+- Fallback: secondary provider, cached last-known-good, queue for manual reconciliation
+- Alert on sustained failure; page on-call if business-critical
+- Idempotency keys so retries are safe
+- If legally/contractually required delivery: audit log + reconciliation job
+
+RU:
+Таймаут, retry, circuit breaker, outbox + async retry, fallback/кэш, алерты,
+идемпотентность, audit + reconciliation для критичных данных.
+
+
+================================================================================
+57. TESTING PYRAMID
+================================================================================
+
+EN:
+Mike Cohn's pyramid (bottom to top):
+1. Unit tests (many, fast, cheap) — business logic, pure functions, mocks for deps
+2. Integration tests (fewer) — real DB (testcontainers), HTTP handlers, message consumers
+3. E2E tests (few) — full system paths, slow, brittle if overused
+4. Manual/exploratory — edge cases automation misses
+
+Invert pyramid = ice cream cone = slow CI, low confidence.
+
+In Go: table-driven unit tests, testcontainers for Postgres/Redis/Kafka, smoke tests
+post-deploy. Contract tests between services.
+
+RU:
+Пирамида: много unit (быстрые) → меньше integration (testcontainers) → мало E2E →
+ручное exploratory. Перевёрнутая пирамида = медленный CI. В Go: table-driven tests,
+testcontainers, smoke после деплоя.
+
+
+================================================================================
+58. GREENFIELD CI/CD PIPELINE APPROACH
+================================================================================
+
+EN:
+1. Monorepo or multi-repo decision early; consistent pipeline templates
+2. CI on every PR: lint (golangci-lint), test (-race -cover), build, security scan
+3. Trunk-based; main always deployable
+4. Build immutable Docker image tagged with git SHA
+5. CD: auto-deploy to dev on merge; manual approval or auto for staging; gated prod
+6. Environments as code; secrets from vault/SSM
+7. DB migrations as versioned job in deploy pipeline
+8. Smoke tests + health check after deploy
+9. Rollback workflow (deploy previous SHA)
+10. Observability hooks from day one
+
+GitHub Actions: reusable workflows, environment protection rules, concurrency groups.
+
+RU:
+Lint/test/build/scan на PR, trunk-based, immutable Docker с SHA, CD dev→staging→prod,
+IaC окружений, миграции в pipeline, smoke, rollback workflow, observability с первого дня.
+
+
+================================================================================
+59. ENSURING THINGS DON'T GO WRONG — CODE TO PRODUCTION
+================================================================================
+
+EN:
+Defense in depth:
+- Local: pre-commit hooks, unit tests before push
+- PR: review, CI gates, branch protection
+- Staging: integration/e2e, load test for critical paths
+- Deploy: canary/blue-green, feature flags
+- Post-deploy: smoke tests, metric comparison, automated rollback on SLO breach
+- Culture: blameless post-mortems, runbooks, on-call readiness
+
+Shift-left security: dependabot, SAST, secret scanning.
+
+RU:
+Pre-commit → PR review + CI → staging + e2e → canary/flags → smoke + метрики +
+auto-rollback → post-mortems. Shift-left security.
+
+
+================================================================================
+60. MONITORING SERVICE AFTER DEPLOYMENT
+================================================================================
+
+EN:
+- Compare golden signals to pre-deploy baseline (15–60 min window)
+- Automated smoke tests hitting critical endpoints
+- Error rate and latency alerts (PagerDuty/Opsgenie)
+- Log spike detection for new error patterns
+- Synthetic checks from outside cluster
+- Business KPI dashboards (orders/min, signups)
+- Feature flag analytics if gradual rollout
+- On-call runbook: how to rollback
+
+RU:
+Сравнение метрик с baseline, smoke tests, алерты на errors/latency, логи, synthetic
+checks, бизнес-KPI, аналитика feature flags, runbook rollback.
+
+
+================================================================================
+61. REPLACING A SERVICE WITH A NEW ONE
+================================================================================
+
+EN:
+Strangler fig pattern:
+1. Build new service behind facade/API gateway
+2. Dual-run: shadow traffic (new service processes but response from old) for validation
+3. Gradual traffic shift: 1% → 100% with metric comparison
+4. Data migration: CDC, batch backfill, or dual-write with reconciliation
+5. ACL between old and new domain models
+6. Deprecate old service; keep rollback path until stable
+7. Document cutover plan and communication with dependent teams
+
+RU:
+Strangler fig: facade, shadow traffic, постепенный перевод трафика, миграция данных
+(CDC/backfill), ACL, deprecation старого сервиса, план rollback.
+
+
+================================================================================
+62. MICROSERVICE COMMUNICATION MECHANISMS
+================================================================================
+
+EN:
+Sync: REST, gRPC, GraphQL
+Async: Kafka, RabbitMQ, NATS, SQS
+Patterns: request/response, pub/sub, event streaming, saga choreography
+Service mesh (Istio/Linkerd): mTLS, retries, traffic split
+API Gateway for external clients; internal service mesh or direct gRPC
+
+RU:
+Sync: REST, gRPC, GraphQL. Async: Kafka, RabbitMQ, NATS, SQS. Saga, service mesh,
+API Gateway.
+
+
+================================================================================
+63. CAN A MICROSERVICE PROCESS AN EVENT TWICE? IDEMPOTENCY
+================================================================================
+
+EN:
+Yes — at-least-once delivery (Kafka, RabbitMQ with acks) guarantees duplicates possible.
+
+Prevention:
+- Idempotency key (event ID or business key) stored in DB with UNIQUE constraint
+- "Processed events" table: insert event_id before handling; skip if exists
+- Natural idempotency: PUT with same payload, debiting wallet with idempotent key
+- Design handlers so repeated execution produces same final state
+- Exactly-once semantics in Kafka are effectively "idempotent consumer + transactional offsets"
+  within limits — still design for at-least-once
+
+RU:
+Да, при at-least-once доставке. Идемпотентность: event ID в UNIQUE таблице,
+processed_events, бизнес-ключи, проектирование handler для повторного выполнения.
+Exactly-once на практике = идемпотентный consumer.
+
+
+================================================================================
+64. CIRCUIT BREAKER — MAIN ADVANTAGE, CLIENT VS SERVER
+================================================================================
+
+EN:
+Main advantage: fail fast and protect the caller (and the failing dependency) from
+cascading overload. When failure rate exceeds threshold, breaker opens — calls return
+immediately without waiting for timeout.
+
+Benefits both sides:
+- Client: doesn't waste threads/goroutines waiting; can return fallback or error quickly
+- Server (failing): gets breathing room to recover instead of retry storm
+
+Server-to-server: client service implements breaker on outbound calls (e.g., sony/gobreaker,
+hystrix-style). It's primarily a client-side pattern protecting the calling service and
+giving the callee time to heal. Server can also use rate limiting and bulkheads.
+
+RU:
+Главное: fail fast и защита от каскадных отказов. При открытом breaker вызовы не ждут
+таймаут.
+
+Клиент не тратит goroutines; сервер получает передышку от retry storm.
+
+В server-to-server breaker на исходящих вызовах (gobreaker). В основном client-side
+паттерн; на сервере также rate limit и bulkhead.
+
+
+================================================================================
+65. STRONGEST / WEAKEST TECHNOLOGY — QUALITY CONTROL
+================================================================================
+
+EN:
+Strongest: Go backend development — microservices, APIs, concurrency, performance tuning.
+Control: deep reviews in other stacks, stay hands-on, contribute to shared libraries,
+mentor others, keep learning (generics, new stdlib).
+
+Weakest: Example — deep frontend React/CSS or legacy Windows-specific admin.
+Control: don't own critical path alone; pair with expert, thorough review of my changes,
+clear interfaces, extensive automated tests, document assumptions, time-box learning.
+
+Honesty about gaps + mitigation beats pretending expertise.
+
+RU:
+Сильная сторона: Go backend. Контроль: review, hands-on, библиотеки, менторинг.
+
+Слабая: например, глубокий frontend. Контроль: не единственный owner, pair с экспертом,
+тесты, чёткие интерфейсы, честность о пробелах.
+
+
+================================================================================
+66. EXAMPLE OF DELEGATING AN IMPORTANT TASK
+================================================================================
+
+EN:
+Example: During a major release, delegated ownership of the canary rollout monitoring
+dashboard and go/no-go checklist to a mid-level engineer. I provided context (SLO
+thresholds, rollback command), stayed available for escalation, but they ran the
+2-hour rollout window and communicated status to stakeholders. They grew confidence;
+I focused on a parallel migration issue. Debrief afterward for learning.
+
+RU:
+Пример: делегировал mid-инженеру мониторинг canary rollout и go/no-go checklist.
+Дал контекст (SLO, rollback), остался на escalation. Он провёл 2-часовое окно и
+коммуникацию со стейкхолдерами. Debrief после.
+
+
+================================================================================
+67. WERE YOU EVER LATE ON A DELIVERABLE? WHY?
+================================================================================
+
+EN:
+Yes, honestly. Example: underestimated integration complexity with a third-party payment
+provider (sandbox differed from prod, webhook retries caused duplicate handling gaps).
+Why: insufficient spike time, optimistic estimate, dependency on vendor documentation.
+
+What I did: communicated early when slip became visible, proposed phased delivery
+(core flow first, edge cases follow), added integration tests and idempotency, updated
+estimates for similar work afterward.
+
+RU:
+Да. Пример: недооценил интеграцию с payment provider (sandbox ≠ prod, дубликаты webhook).
+Причина: мало spike, оптимистичная оценка.
+
+Действия: раннее сообщение о сдвиге, phased delivery, тесты и идемпотентность,
+корректировка оценок в будущем.
+
+
+================================================================================
+68. HOW DO YOU SET REASONABLE TIME ESTIMATES?
+================================================================================
+
+EN:
+- Break work into tasks < 1–2 days each
+- Reference similar past work (analogous estimation)
+- Include: code, tests, review cycles, deploy, monitoring, documentation
+- Explicitly add risk buffer for unknowns (integrations, new tech) — 20–50%
+- Spike first if uncertainty is high (time-boxed investigation)
+- Three-point estimate: optimistic / likely / pessimistic
+- Re-estimate when new information appears; communicate early
+- Track actual vs estimate to improve calibration
+
+RU:
+Декомпозиция, аналогии с прошлым, учёт тестов/review/deploy, buffer на риски,
+spike при неопределённости, three-point estimate, переоценка при новых данных,
+трекинг факт vs план.
+
+
+================================================================================
+69. INFRASTRUCTURE AS CODE — EXPERIENCE
+================================================================================
+
+EN:
+Yes: Terraform for AWS/GCP (VPC, RDS, EKS/GKE, IAM, S3), Helm charts for K8s
+deployments, sometimes Pulumi. GitOps with ArgoCD or Flux for cluster state.
+
+Practices:
+- Modules for reuse; state in remote backend (S3 + lock)
+- PR review for infra changes; plan in CI before apply
+- Separate state per environment
+- Version pin providers and modules
+- Never manual prod changes without codifying afterward
+
+RU:
+Terraform (VPC, RDS, EKS, IAM), Helm, Pulumi, GitOps (ArgoCD/Flux). Модули, remote
+state, plan в CI, отдельный state per env, version pin, без ручных prod-изменений.
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================
