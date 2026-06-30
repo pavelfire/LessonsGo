@@ -9,7 +9,13 @@ func main() {
 	// isLeapYear()
 	// cycleInGo()
 	// squaresFrom1to10()
-	sumFromFirstToSecondNumber()
+	// sumFromFirstToSecondNumber()
+	// multipleOfEight()
+	// countMaxInInput()
+	// findNumberMultipleOfCAndNotMultipleOfD()
+	// moreThan10LessThan100()
+	// taskAboutBankDeposit()
+	sameDigits()
 }
 
 func triRaznyeCifri(){
@@ -91,4 +97,83 @@ func sumFromFirstToSecondNumber(){
         sum += i
 	}
     fmt.Println(sum)
+}
+
+func multipleOfEight(){
+	var sum int = 0
+    var quan int  
+	fmt.Scan(&quan)
+    var n int
+	for i := 0; i < quan; i++ {
+		fmt.Scan(&n)
+        fmt.Println(n)
+        if n > 9 && n <= 99 && n % 8 == 0{
+            fmt.Println("n:",n)
+        sum += n
+            fmt.Println("sum:",n)
+        }      
+	}
+    fmt.Println(sum)
+}
+
+func countMaxInInput(){
+	var max int = 0
+    count := 0
+    var n int
+    for fmt.Scan(&n); n != 0; fmt.Scan(&n) {
+        if n > max{
+            max = n
+            count = 0
+        }
+        if n == max {
+            count++
+        }
+    }
+    fmt.Println(count)
+}
+
+func findNumberMultipleOfCAndNotMultipleOfD(){
+	var n, c, d, i int
+    fmt.Scan(&n)
+    fmt.Scan(&c)
+    fmt.Scan(&d)
+    for i = 1; i < n+1; i++{
+        if i % c == 0 && i % d != 0{
+            fmt.Println(i)
+            break
+        }
+    }
+}
+
+func moreThan10LessThan100(){
+	var n int
+    for fmt.Scan(&n); n <= 100; fmt.Scan(&n) {
+        if n < 10{
+        continue
+        }
+        fmt.Println(n) 
+    }  
+}
+
+func taskAboutBankDeposit(){
+	var x, p, y, i int
+    fmt.Scan(&x)
+    fmt.Scan(&p)
+    fmt.Scan(&y)
+    for i = i; x < y; i++{
+        x = x + x*p/100
+    }   
+    fmt.Println(i)
+}
+
+func sameDigits(){
+	var x, y string
+    var i, j int
+    fmt.Scan(&x)
+    fmt.Scan(&y)
+    for i = 0; i < len(x); i++{
+        for j = 0; j < len(y); j++{
+            if x[i] == y[j] {fmt.Print(string(x[i])," ")  }  
+        }
+    }  
 }
