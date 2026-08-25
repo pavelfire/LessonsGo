@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 func main() {
 	fmt.Println(sum([]int{1, 2, 3})) // 6
@@ -11,6 +14,15 @@ func main() {
 	fmt.Println(removeDublicates(nil))
 	ratings := []float64{7.2, 5.1, 8.9, 6.0, 9.1, 4.3, 7.8}
 	fmt.Println(filterByRating(ratings, 7.0))
+
+	scores := map[string]int{
+		"charlie": 8,
+		"alice":   10,
+		"bob":     7,
+	}
+	for _, k := range sortedKeys(scores) {
+		fmt.Println(k, scores[k])
+	}
 }
 
 func sum(nums []int) int {
@@ -42,4 +54,13 @@ func filterByRating(ratings []float64, min float64) []float64 {
 		}
 	}
 	return out
+}
+
+func sortedKeys(m map[string]int) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
