@@ -139,3 +139,16 @@ func sliceExample5() {
 	}
 	fmt.Print(count)
 }
+
+func howManyZero() {
+	var n, sum int
+	fmt.Scan(&n)
+	var m = make([]int, n, n)
+	for i := 0; i < n; i++ {
+		fmt.Scan(&m[i])
+		if m[i] == 0 {
+			sum++
+		}
+	}
+	fmt.Print(sum)
+}
