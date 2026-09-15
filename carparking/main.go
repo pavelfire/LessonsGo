@@ -129,6 +129,8 @@ func (vp *ValetParking) ParkCar(size CarSize) (string, error) {
 	token := uuid.New().String()
 	vp.occupiedSpots[token] = assignedSpot
 
+	fmt.Printf("Parked %v car in %s spot, token: %s\n", size, assignedSpot, token)
+
 	return token, nil
 }
 
@@ -146,12 +148,40 @@ func (vp *ValetParking) ReturnCar(token string) error {
 	vp.freeSpots[spot]++
 	delete(vp.occupiedSpots, token)
 
+	fmt.Printf("Freed %s spot for token: %s\n", spot, token)
+
 	return nil
+}
+
+func (s SpotType) String() string {
+	switch s {
+	case SmallSpot:
+		return "small"
+	case MediumSpot:
+		return "medium"
+	case LargeSpot:
+		return "large"
+	default:
+		return "unknown"
+	}
+}
+
+func (s CarSize) String() string {
+	switch s {
+	case SmallCar:
+		return "small"
+	case MediumCar:
+		return "medium"
+	case LargeCar:
+		return "large"
+	default:
+		return "unknown"
+	}
 }
 
 func main() {
 	// Пример использования: 1 маленькое, 1 среднее, 1 большое место
-	parking := NewValetParking(1, 1, 1)
+	parking := NewValetParking(1, 0, 1)
 
 	// Паркуем среднюю машину
 	token1, err := parking.ParkCar(MediumCar)
